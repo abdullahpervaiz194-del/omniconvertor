@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
-  User,
+  auth,
+  googleProvider,
   onAuthStateChanged,
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -8,8 +9,8 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile,
-} from 'firebase/auth';
-import { auth, googleProvider } from '../lib/firebase';
+  type User,
+} from '../lib/firebase';
 import { UserProfile, ConversionHistoryItem } from '../types/firestore';
 import {
   syncUserProfile,
