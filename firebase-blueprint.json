@@ -1,0 +1,240 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile document storing authentication details, preferences, and Pro membership status.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique Firebase Authentication UID matching request.auth.uid",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user",
+          "maxLength": 100
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar photo URL of the user",
+          "maxLength": 1024
+        },
+        "isPro": {
+          "type": "boolean",
+          "description": "Whether the user has active Pro tier status"
+        },
+        "proPlan": {
+          "type": "string",
+          "description": "Active Pro plan tier name or free tier identifier",
+          "maxLength": 50
+        },
+        "totalConversions": {
+          "type": "number",
+          "description": "Total count of completed file conversions"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp or server timestamp of account profile creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp or server timestamp of last profile update"
+        }
+      },
+      "required": ["uid", "email", "isPro"]
+    },
+    "ConversionHistory": {
+      "title": "ConversionHistory",
+      "description": "Record of a completed file conversion performed by the user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the history item",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the user who performed the conversion",
+          "maxLength": 128
+        },
+        "fileName": {
+          "type": "string",
+          "description": "Name of the converted output file",
+          "maxLength": 255
+        },
+        "originalName": {
+          "type": "string",
+          "description": "Original uploaded file name",
+          "maxLength": 255
+        },
+        "toolId": {
+          "type": "string",
+          "description": "ID of the converter module used",
+          "maxLength": 100
+        },
+        "fromFormat": {
+          "type": "string",
+          "description": "Source file format extension",
+          "maxLength": 20
+        },
+        "toFormat": {
+          "type": "string",
+          "description": "Destination file format extension",
+          "maxLength": 20
+        },
+        "originalSize": {
+          "type": "number",
+          "description": "Size of original file in bytes"
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "Size of converted output file in bytes"
+        },
+        "category": {
+          "type": "string",
+          "description": "Converter category (image, document, multimedia)",
+          "maxLength": 50
+        },
+        "status": {
+          "type": "string",
+          "description": "Outcome status of the conversion",
+          "enum": ["completed", "failed"],
+          "maxLength": 20
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when conversion was logged"
+        }
+      },
+      "required": ["id", "userId", "fileName", "originalName", "toolId", "fromFormat", "toFormat", "originalSize", "fileSize", "status"]
+    },
+    "PaymentRequest": {
+      "title": "PaymentRequest",
+      "description": "Manual payment proof screenshot submission for Pro membership upgrade review.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the payment request",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase UID of user submitting payment proof",
+          "maxLength": 128
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Email address of the purchasing user",
+          "maxLength": 256
+        },
+        "userName": {
+          "type": "string",
+          "description": "Display name of purchasing user",
+          "maxLength": 256
+        },
+        "planId": {
+          "type": "string",
+          "description": "Identifier of the chosen membership plan",
+          "maxLength": 50
+        },
+        "planName": {
+          "type": "string",
+          "description": "Readable name of the selected tier",
+          "maxLength": 100
+        },
+        "amount": {
+          "type": "number",
+          "description": "Billed currency amount in USD"
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency code",
+          "maxLength": 10
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Payment instrument used",
+          "maxLength": 50
+        },
+        "transactionId": {
+          "type": "string",
+          "description": "Bank / Wallet transaction or reference number",
+          "maxLength": 128
+        },
+        "screenshotUrl": {
+          "type": "string",
+          "description": "Storage download URL or URI of the receipt image",
+          "maxLength": 4096
+        },
+        "storagePath": {
+          "type": "string",
+          "description": "Firebase storage path if stored in bucket",
+          "maxLength": 512
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional notes from the user",
+          "maxLength": 1000
+        },
+        "status": {
+          "type": "string",
+          "description": "Approval workflow status",
+          "enum": ["pending", "approved", "rejected"],
+          "maxLength": 20
+        },
+        "rejectionReason": {
+          "type": "string",
+          "description": "Reason for denial if rejected by admin",
+          "maxLength": 500
+        },
+        "approvedBy": {
+          "type": "string",
+          "description": "Admin UID or email who processed the request",
+          "maxLength": 256
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of submission"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of last review update"
+        }
+      },
+      "required": ["id", "userId", "userEmail", "planId", "planName", "amount", "screenshotUrl", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Root collection storing private user profiles and Pro membership status."
+    },
+    "/users/{userId}/history/{historyId}": {
+      "schema": {
+        "$ref": "#/entities/ConversionHistory"
+      },
+      "description": "Subcollection storing persistent file conversion history records for the owner."
+    },
+    "/paymentRequests/{requestId}": {
+      "schema": {
+        "$ref": "#/entities/PaymentRequest"
+      },
+      "description": "Root collection of submitted payment proof screenshots for admin review and automatic Pro upgrade."
+    }
+  }
+}

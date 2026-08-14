@@ -1,0 +1,6 @@
+{
+  "name": "All-In-One Converter",
+  "description": "Privacy-first client-side file converter hub for images, documents, audio, and video with Pro payment verification and admin approval.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

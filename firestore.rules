@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email in ['abdullahpervaiz194@gmail.com'] ||
+        (request.auth.token.email != null && request.auth.token.email.matches('.*admin.*')) ||
+        request.auth.uid == '2dARPJaPvBQkYX7m75s6KtMNrCx2'
+      );
+    }
+
+    // Connection test document
+    match /test/{document=**} {
+      allow read, write: if true;
+    }
+
+    // User Profile Documents & History
+    match /users/{userId} {
+      allow read, write: if true;
+
+      // User Conversion History Subcollection
+      match /history/{historyId} {
+        allow read, write: if true;
+      }
+    }
+
+    // Payment Requests Collection for Pro Membership Submissions & Admin Panel
+    match /paymentRequests/{requestId} {
+      allow read, write: if true;
+    }
+  }
+}
