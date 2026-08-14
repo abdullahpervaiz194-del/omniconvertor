@@ -34,18 +34,18 @@ import firebaseConfig from '../../firebase-applet-config.json';
 // Initialize the Firebase app instance safely
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Set Firestore log level to silent / error to prevent benign connection retry warnings
+// Set Firestore log level to silent to suppress benign connection retry warnings in sandboxed iframes
 try {
-  setLogLevel('error');
+  setLogLevel('silent');
 } catch {
   // ignore if already set
 }
 
-// Initialize Firestore with robust auto-detection
+// Initialize Firestore with force long polling to ensure immediate, stable HTTP streaming in container and iframe environments
 export const db = initializeFirestore(
   app,
   {
-    experimentalAutoDetectLongPolling: true,
+    experimentalForceLongPolling: true,
   },
   firebaseConfig.firestoreDatabaseId
 );

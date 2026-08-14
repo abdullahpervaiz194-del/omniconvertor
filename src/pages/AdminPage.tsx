@@ -19,8 +19,7 @@ import {
   Layers,
   ArrowLeft,
   Loader2,
-  RefreshCw,
-  Sliders
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -39,10 +38,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
   const { 
     currentUser, 
     isAdmin, 
-    adminModeOverride, 
-    setAdminModeOverride,
-    setAuthModalOpen,
-    signInAsDemoUser
+    openAuthModal
   } = useAuth();
 
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
@@ -61,8 +57,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
   // Screenshot Lightbox
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
 
-  // Subscribe to all payment requests in Firestore
+  // Subscribe to all payment requests in Firestore only when authenticated as admin
   useEffect(() => {
+    if (!isAdmin) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     const unsub = subscribeToAllPaymentRequests(
       (items) => {
@@ -76,7 +76,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
     );
 
     return () => unsub();
-  }, []);
+  }, [isAdmin]);
 
   const handleApprove = async (req: PaymentRequest) => {
     setProcessingId(req.id);
@@ -159,6 +159,45 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
     return matchesStatus && matchesSearch;
   });
 
+  // Guard: If user is not logged in or is not an administrator, show strict access restriction
+  if (!currentUser || !isAdmin) {
+    return (
+      <div className="max-w-md mx-auto py-16 px-4">
+        <div className="p-6 sm:p-8 rounded-2xl bg-[#18181b] border border-rose-500/30 text-center space-y-5 shadow-2xl shadow-rose-950/20">
+          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto">
+            <Shield className="w-7 h-7" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-white tracking-tight">
+              Administrator Login Required
+            </h2>
+            <p className="text-xs text-[#a1a1aa] leading-relaxed">
+              The payment verification dashboard and moderation controls are strictly restricted to authenticated administrators. Please log in with your admin account to continue.
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col gap-2.5">
+            <button
+              onClick={() => openAuthModal('signin')}
+              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-600/20 transition-all"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Log In as Admin</span>
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="w-full py-2 px-4 rounded-xl bg-[#09090b] hover:bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:text-white font-mono text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Converters</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 pb-16">
       
@@ -188,23 +227,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
           </div>
         </div>
 
-        {/* Admin Dev Switcher / Mode Indicator */}
         <div className="flex items-center gap-3 self-start sm:self-auto">
-          <div className="px-3 py-1.5 rounded-xl bg-[#18181b] border border-[#27272a] flex items-center gap-2">
-            <Sliders className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="text-[11px] font-mono text-[#a1a1aa]">Admin Mode:</span>
-            <button
-              onClick={() => setAdminModeOverride(!adminModeOverride)}
-              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all cursor-pointer ${
-                adminModeOverride || isAdmin
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                  : 'bg-[#27272a] text-[#71717a]'
-              }`}
-            >
-              {adminModeOverride || isAdmin ? 'ACTIVE' : 'TOGGLE ON'}
-            </button>
-          </div>
-
           <button
             onClick={() => navigate('/pricing')}
             className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/20"
@@ -214,22 +237,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
           </button>
         </div>
       </div>
-
-      {/* Admin Notice / Disclaimer if not signed in */}
-      {!currentUser && (
-        <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-300 text-xs flex items-center justify-between gap-4 font-mono">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>You are viewing Admin Panel in Preview/Developer mode. Sign in to link actions to your admin email ({'abdullahpervaiz194@gmail.com'}).</span>
-          </div>
-          <button
-            onClick={() => setAuthModalOpen(true)}
-            className="px-3 py-1 rounded bg-amber-500 text-black font-bold text-xs cursor-pointer hover:bg-amber-400"
-          >
-            Sign In
-          </button>
-        </div>
-      )}
 
       {/* Action Toast Feedback */}
       {feedbackMsg && (
@@ -291,71 +298,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
             ${totalRevenue.toLocaleString()}
           </div>
           <p className="text-[10px] text-[#a1a1aa] font-mono">From approved tiers</p>
-        </div>
-      </section>
-
-      {/* Admin Testing Tools & Account Switcher (Only Available to Admin) */}
-      <section className="p-4 rounded-2xl bg-[#18181b] border border-indigo-500/20 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#27272a]">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <h3 className="text-xs font-bold font-mono text-white">
-              Admin Sandbox & Account Impersonation
-            </h3>
-            <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
-              ADMIN ONLY
-            </span>
-          </div>
-          <span className="text-[10px] text-[#71717a] font-mono">
-            Hidden from public visitors • Available only in Admin view
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={async () => {
-              await signInAsDemoUser('abdullahpervaiz194@gmail.com', 'Abdullah (Admin)', true, true);
-              setFeedbackMsg({ text: 'Active as Abdullah (Admin & Pro)', type: 'success' });
-            }}
-            className="p-2.5 rounded-xl bg-amber-950/20 hover:bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs font-mono flex items-center justify-between transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5 text-amber-400" />
-              <span className="font-semibold">Abdullah (Admin)</span>
-            </div>
-            <span className="text-[10px] text-amber-400 font-bold">Admin ⚡</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={async () => {
-              await signInAsDemoUser('tester.user1@example.com', 'Alex (User 1)', false, false);
-              setFeedbackMsg({ text: 'Switched to Test User 1 (Free tier account)', type: 'success' });
-            }}
-            className="p-2.5 rounded-xl bg-[#09090b] hover:bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:text-white text-xs font-mono flex items-center justify-between transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <UserIcon className="w-3.5 h-3.5 text-[#71717a]" />
-              <span>Alex (Free User 1)</span>
-            </div>
-            <span className="text-[10px] text-[#71717a]">Free Tier</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={async () => {
-              await signInAsDemoUser('tester.user2@example.com', 'Sam (User 2)', false, false);
-              setFeedbackMsg({ text: 'Switched to Test User 2 (Free tier account)', type: 'success' });
-            }}
-            className="p-2.5 rounded-xl bg-[#09090b] hover:bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:text-white text-xs font-mono flex items-center justify-between transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <UserIcon className="w-3.5 h-3.5 text-[#71717a]" />
-              <span>Sam (Free User 2)</span>
-            </div>
-            <span className="text-[10px] text-[#71717a]">Free Tier</span>
-          </button>
         </div>
       </section>
 

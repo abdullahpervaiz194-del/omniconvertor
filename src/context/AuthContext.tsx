@@ -73,8 +73,6 @@ interface AuthContextType {
   isLoading: boolean;
   isPro: boolean;
   isAdmin: boolean;
-  adminModeOverride: boolean;
-  setAdminModeOverride: (enabled: boolean) => void;
   authModalOpen: boolean;
   authModalMode: 'signin' | 'signup' | 'forgot';
   setAuthModalMode: (mode: 'signin' | 'signup' | 'forgot') => void;
@@ -109,18 +107,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'forgot'>('signup');
   const [proModalOpen, setProModalOpen] = useState(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
-  const [adminModeOverride, setAdminModeOverride] = useState<boolean>(() => {
-    return localStorage.getItem('omni_admin_mode') === 'true';
-  });
 
   const openAuthModal = (mode: 'signin' | 'signup' | 'forgot' = 'signup') => {
     setAuthModalMode(mode);
     setAuthModalOpen(true);
-  };
-
-  const handleSetAdminModeOverride = (enabled: boolean) => {
-    setAdminModeOverride(enabled);
-    localStorage.setItem('omni_admin_mode', enabled ? 'true' : 'false');
   };
 
   const isEmailAdmin = !!(
@@ -129,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
      currentUser.email.toLowerCase().includes('admin'))
   );
 
-  const isAdmin = isEmailAdmin || !!userProfile?.isAdmin || adminModeOverride;
+  const isAdmin = !!currentUser && (isEmailAdmin || !!userProfile?.isAdmin);
 
   useEffect(() => {
     // Check if demo user is stored in session
@@ -222,6 +212,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAuthModalOpen(false);
       }
     } catch (error: any) {
+      if (error?.code === 'auth/unauthorized-domain' || error?.message?.includes('unauthorized-domain')) {
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+        console.error(`[Auth] Domain "${host}" is not authorized in Firebase Authentication Console.`);
+        throw new Error(`Firebase: Error (auth/unauthorized-domain). The domain "${host}" is not authorized for OAuth operations in your Firebase project. Please add it to Authorized Domains in Firebase Console.`);
+      }
       if (error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
         console.info('[Auth] Google provider disabled in Console, creating verified Google session');
         registerAccountInStore('google.user@gmail.com', 'Google User');
@@ -456,8 +451,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         isPro,
         isAdmin,
-        adminModeOverride,
-        setAdminModeOverride: handleSetAdminModeOverride,
         authModalOpen,
         authModalMode,
         setAuthModalMode,

@@ -118,13 +118,6 @@ export const Footer: React.FC<FooterProps> = ({ navigate, onSelectCategory }) =>
               Pricing & Proof Upload
             </button>
             <button
-              onClick={() => navigate('/admin')}
-              className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer text-[#a1a1aa]"
-            >
-              <Shield className="w-3 h-3 text-indigo-400" />
-              Admin
-            </button>
-            <button
               onClick={() => navigate('/privacy')}
               className="hover:text-[#fafafa] transition-colors flex items-center gap-1 cursor-pointer"
             >

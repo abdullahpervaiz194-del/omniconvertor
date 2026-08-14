@@ -41,12 +41,16 @@ export const AuthModal: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [isUnauthorizedDomain, setIsUnauthorizedDomain] = useState(false);
+  const [currentHostname, setCurrentHostname] = useState('');
+
   if (!authModalOpen) return null;
 
   const handleClose = () => {
     setAuthModalOpen(false);
     setError(null);
     setIsOperationNotAllowed(false);
+    setIsUnauthorizedDomain(false);
     setSuccessMsg(null);
     setLoading(false);
   };
@@ -54,6 +58,7 @@ export const AuthModal: React.FC = () => {
   const handleGoogleSignIn = async () => {
     setError(null);
     setIsOperationNotAllowed(false);
+    setIsUnauthorizedDomain(false);
     setSuccessMsg(null);
     setLoading(true);
     try {
@@ -61,7 +66,13 @@ export const AuthModal: React.FC = () => {
       handleClose();
     } catch (err: any) {
       const msg = err?.message || '';
-      if (msg.includes('auth/operation-not-allowed')) {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : 'your-domain';
+      setCurrentHostname(hostname);
+
+      if (msg.includes('auth/unauthorized-domain') || msg.includes('unauthorized-domain')) {
+        setIsUnauthorizedDomain(true);
+        setError(`Firebase Error (auth/unauthorized-domain): The domain "${hostname}" is not authorized for OAuth operations in your Firebase project.`);
+      } else if (msg.includes('auth/operation-not-allowed')) {
         setIsOperationNotAllowed(true);
         setError('Firebase Error (auth/operation-not-allowed): Google Sign-In provider is disabled in Firebase Console.');
       } else if (msg.includes('auth/popup-closed-by-user')) {
@@ -78,6 +89,7 @@ export const AuthModal: React.FC = () => {
     e.preventDefault();
     setError(null);
     setIsOperationNotAllowed(false);
+    setIsUnauthorizedDomain(false);
     setSuccessMsg(null);
     setLoading(true);
 
@@ -106,7 +118,13 @@ export const AuthModal: React.FC = () => {
       }
     } catch (err: any) {
       let raw = err?.message || 'Authentication failed. Please verify credentials.';
-      if (raw.includes('auth/operation-not-allowed')) {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : 'your-domain';
+      setCurrentHostname(hostname);
+
+      if (raw.includes('auth/unauthorized-domain') || raw.includes('unauthorized-domain')) {
+        setIsUnauthorizedDomain(true);
+        raw = `Firebase Error (auth/unauthorized-domain): The domain "${hostname}" is not authorized for OAuth operations in your Firebase project.`;
+      } else if (raw.includes('auth/operation-not-allowed')) {
         setIsOperationNotAllowed(true);
         raw = 'Firebase Error (auth/operation-not-allowed): Email/Password authentication is currently disabled in your Firebase project console.';
       } else if (raw.includes('auth/invalid-credential') || raw.includes('auth/wrong-password') || raw.includes('auth/user-not-found')) {
@@ -322,6 +340,21 @@ export const AuthModal: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                {isUnauthorizedDomain && (
+                  <div className="mt-2 pt-2 border-t border-rose-900/40 text-[11px] text-rose-200/90 space-y-1.5 font-mono">
+                    <p className="font-bold text-white flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                      Authorize domain in Firebase Console (1-minute fix):
+                    </p>
+                    <ol className="list-decimal pl-4 space-y-1 text-[10px] text-[#d4d4d8]">
+                      <li>Open <a href="https://console.firebase.google.com/project/wired-ascent-7q6d2/authentication/settings" target="_blank" rel="noreferrer" className="text-indigo-300 underline font-bold hover:text-indigo-200">Firebase Console &gt; Authentication &gt; Settings</a></li>
+                      <li>Select the <strong className="text-white">Authorized domains</strong> tab</li>
+                      <li>Click <strong className="text-white">Add domain</strong></li>
+                      <li>Enter: <code className="px-1.5 py-0.5 rounded bg-black/60 text-amber-300 font-bold">{currentHostname || 'your-deployment-domain'}</code> and click <strong className="text-white">Add</strong></li>
+                    </ol>
+                  </div>
+                )}
 
                 {isOperationNotAllowed && (
                   <div className="mt-2 pt-2 border-t border-rose-900/40 text-[11px] text-rose-200/90 space-y-1.5 font-mono">
