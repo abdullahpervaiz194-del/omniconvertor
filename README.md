@@ -57,13 +57,3 @@ npm run dev
 npm run build
 ```
 
----
-
-## 🌐 Deployment to Vercel
-
-1. Push this repository to GitHub.
-2. Import the repository in [Vercel](https://vercel.com).
-3. Framework Preset: **Vite**
-4. Build Command: `npm run build`
-5. Output Directory: `dist`
-6. Deploy!
