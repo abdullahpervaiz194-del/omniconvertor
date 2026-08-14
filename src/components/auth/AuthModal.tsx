@@ -4,16 +4,12 @@ import {
   Mail, 
   Lock, 
   User as UserIcon, 
-  Sparkles, 
   AlertCircle, 
   CheckCircle2, 
   Loader2,
   ArrowRight,
   ShieldCheck,
-  Shield,
-  Crown,
-  KeyRound,
-  ExternalLink
+  KeyRound
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -21,14 +17,22 @@ export const AuthModal: React.FC = () => {
   const { 
     authModalOpen, 
     setAuthModalOpen, 
+    authModalMode,
+    setAuthModalMode,
     signInWithGoogle, 
     signInWithEmail, 
     signUpWithEmail, 
-    signInAsDemoUser,
     resetPassword 
   } = useAuth();
 
-  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
+  const mode = authModalMode;
+  const setMode = (newMode: 'signin' | 'signup' | 'forgot') => {
+    setAuthModalMode(newMode);
+    setError(null);
+    setSuccessMsg(null);
+    setIsOperationNotAllowed(false);
+  };
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -78,13 +82,7 @@ export const AuthModal: React.FC = () => {
     setLoading(true);
 
     try {
-      if (mode === 'signin') {
-        if (!email || !password) {
-          throw new Error('Please enter both email and password.');
-        }
-        await signInWithEmail(email, password);
-        handleClose();
-      } else if (mode === 'signup') {
+      if (mode === 'signup') {
         if (!email || !password) {
           throw new Error('Please fill in all required fields.');
         }
@@ -92,6 +90,12 @@ export const AuthModal: React.FC = () => {
           throw new Error('Password must be at least 6 characters.');
         }
         await signUpWithEmail(email, password, displayName);
+        handleClose();
+      } else if (mode === 'signin') {
+        if (!email || !password) {
+          throw new Error('Please enter both email and password.');
+        }
+        await signInWithEmail(email, password);
         handleClose();
       } else if (mode === 'forgot') {
         if (!email) {
@@ -105,10 +109,10 @@ export const AuthModal: React.FC = () => {
       if (raw.includes('auth/operation-not-allowed')) {
         setIsOperationNotAllowed(true);
         raw = 'Firebase Error (auth/operation-not-allowed): Email/Password authentication is currently disabled in your Firebase project console.';
-      } else if (raw.includes('auth/invalid-credential') || raw.includes('auth/wrong-password')) {
-        raw = 'Invalid email or password. Please check your credentials.';
+      } else if (raw.includes('auth/invalid-credential') || raw.includes('auth/wrong-password') || raw.includes('auth/user-not-found')) {
+        raw = `No registered account found with ${email || 'this email'}. Please click "Sign Up" above to create your account first.`;
       } else if (raw.includes('auth/email-already-in-use')) {
-        raw = 'An account with this email already exists. Try signing in.';
+        raw = 'An account with this email already exists. Please switch to Sign In.';
       } else if (raw.includes('auth/weak-password')) {
         raw = 'Password is too weak. Please use at least 6 characters.';
       } else if (raw.includes('auth/invalid-email')) {
@@ -120,24 +124,7 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const handleQuickDemoLogin = async (
-    demoEmail: string, 
-    name: string, 
-    isPro: boolean, 
-    isAdmin: boolean
-  ) => {
-    setLoading(true);
-    setError(null);
-    setIsOperationNotAllowed(false);
-    try {
-      await signInAsDemoUser(demoEmail, name, isPro, isAdmin);
-      handleClose();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to sign in demo session');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const isNotFoundError = error && (error.toLowerCase().includes('sign up') || error.toLowerCase().includes('no account') || error.toLowerCase().includes('not found'));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -153,12 +140,14 @@ export const AuthModal: React.FC = () => {
             </div>
             <div>
               <h3 className="text-sm font-bold text-white tracking-tight">
+                {mode === 'signup' && 'Create Your OmniConvert Account'}
                 {mode === 'signin' && 'Sign In to OmniConvert'}
-                {mode === 'signup' && 'Create Your Account'}
-                {mode === 'forgot' && 'Reset Password'}
+                {mode === 'forgot' && 'Reset Your Password'}
               </h3>
               <p className="text-[11px] text-[#a1a1aa] font-mono">
-                Sync file history, unlock Pro & Admin access
+                {mode === 'signup' && 'Sign up first to save conversions & access Pro'}
+                {mode === 'signin' && 'Welcome back! Enter your registered details'}
+                {mode === 'forgot' && 'We will send a reset link to your email'}
               </p>
             </div>
           </div>
@@ -169,6 +158,41 @@ export const AuthModal: React.FC = () => {
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Segmented Mode Selector Tabs (Sign Up vs Sign In) */}
+        {mode !== 'forgot' && (
+          <div className="px-6 pt-4 pb-1 shrink-0">
+            <div className="grid grid-cols-2 p-1 rounded-lg bg-[#09090b] border border-[#27272a]">
+              <button
+                type="button"
+                onClick={() => setMode('signup')}
+                className={`py-2 px-3 rounded-md text-xs font-semibold font-mono transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  mode === 'signup'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-[#a1a1aa] hover:text-white'
+                }`}
+                id="tab-mode-signup"
+              >
+                <UserIcon className="w-3.5 h-3.5" />
+                <span>1. Sign Up Free</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('signin')}
+                className={`py-2 px-3 rounded-md text-xs font-semibold font-mono transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  mode === 'signin'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-[#a1a1aa] hover:text-white'
+                }`}
+                id="tab-mode-signin"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>2. Sign In</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Modal Body */}
         <div className="p-6 space-y-4 overflow-y-auto">
@@ -202,12 +226,14 @@ export const AuthModal: React.FC = () => {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                <span>Continue with Google</span>
+                <span>{mode === 'signup' ? 'Sign Up with Google' : 'Continue with Google'}</span>
               </button>
 
               <div className="flex items-center gap-3">
                 <div className="h-[1px] flex-1 bg-[#27272a]"></div>
-                <span className="text-[10px] uppercase font-mono text-[#71717a]">or with email</span>
+                <span className="text-[10px] uppercase font-mono text-[#71717a]">
+                  {mode === 'signup' ? 'or register with email' : 'or sign in with email'}
+                </span>
                 <div className="h-[1px] flex-1 bg-[#27272a]"></div>
               </div>
             </div>
@@ -249,16 +275,13 @@ export const AuthModal: React.FC = () => {
             {mode !== 'forgot' && (
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-mono text-[#a1a1aa] block">Password</label>
+                  <label className="text-[11px] font-mono text-[#a1a1aa] block">
+                    Password {mode === 'signup' ? '(min. 6 characters)' : ''}
+                  </label>
                   {mode === 'signin' && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setMode('forgot');
-                        setError(null);
-                        setSuccessMsg(null);
-                        setIsOperationNotAllowed(false);
-                      }}
+                      onClick={() => setMode('forgot')}
                       className="text-[10px] text-indigo-400 hover:underline cursor-pointer"
                     >
                       Forgot password?
@@ -284,8 +307,19 @@ export const AuthModal: React.FC = () => {
               <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-900/60 text-rose-300 text-xs space-y-2 animate-in fade-in">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                  <div className="space-y-1 text-xs">
-                    <span className="font-semibold">{error}</span>
+                  <div className="space-y-1.5 text-xs flex-1">
+                    <span className="font-semibold block">{error}</span>
+                    
+                    {/* Prompt to switch to Sign Up if account doesn't exist */}
+                    {mode === 'signin' && isNotFoundError && (
+                      <button
+                        type="button"
+                        onClick={() => setMode('signup')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] cursor-pointer shadow-sm transition-all"
+                      >
+                        <span>👉 Click here to Sign Up first</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -301,9 +335,6 @@ export const AuthModal: React.FC = () => {
                       <li>Click <strong className="text-white">Email/Password</strong> and/or <strong className="text-white">Google</strong></li>
                       <li>Toggle <strong className="text-white">Enable</strong> and click <strong className="text-white">Save</strong></li>
                     </ol>
-                    <p className="text-[10px] text-amber-300 pt-1">
-                      💡 Tip: You can also use the <strong>1-Click Quick Login</strong> buttons below to test instantly without configuring Firebase!
-                    </p>
                   </div>
                 )}
               </div>
@@ -328,8 +359,8 @@ export const AuthModal: React.FC = () => {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
+                  {mode === 'signup' && 'Create Account & Sign Up'}
                   {mode === 'signin' && 'Sign In'}
-                  {mode === 'signup' && 'Create Account'}
                   {mode === 'forgot' && 'Send Reset Link'}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
@@ -339,35 +370,12 @@ export const AuthModal: React.FC = () => {
 
           {/* Toggle modes */}
           <div className="pt-2 border-t border-[#27272a] text-center text-xs text-[#a1a1aa]">
-            {mode === 'signin' && (
-              <p>
-                Don't have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signup');
-                    setError(null);
-                    setSuccessMsg(null);
-                    setIsOperationNotAllowed(false);
-                  }}
-                  className="text-indigo-400 font-semibold hover:underline cursor-pointer"
-                >
-                  Sign Up Free
-                </button>
-              </p>
-            )}
-
             {mode === 'signup' && (
               <p>
                 Already have an account?{' '}
                 <button
                   type="button"
-                  onClick={() => {
-                    setMode('signin');
-                    setError(null);
-                    setSuccessMsg(null);
-                    setIsOperationNotAllowed(false);
-                  }}
+                  onClick={() => setMode('signin')}
                   className="text-indigo-400 font-semibold hover:underline cursor-pointer"
                 >
                   Sign In
@@ -375,72 +383,29 @@ export const AuthModal: React.FC = () => {
               </p>
             )}
 
+            {mode === 'signin' && (
+              <p>
+                Don't have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => setMode('signup')}
+                  className="text-indigo-400 font-semibold hover:underline cursor-pointer"
+                >
+                  Sign Up Free First
+                </button>
+              </p>
+            )}
+
             {mode === 'forgot' && (
               <button
                 type="button"
-                onClick={() => {
-                  setMode('signin');
-                  setError(null);
-                  setSuccessMsg(null);
-                  setIsOperationNotAllowed(false);
-                }}
+                onClick={() => setMode('signin')}
                 className="text-indigo-400 font-semibold hover:underline cursor-pointer"
               >
                 Back to Sign In
               </button>
             )}
           </div>
-
-          {/* 1-Click Test Login Section */}
-          <div className="pt-3 border-t border-[#27272a] space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono uppercase text-[#71717a] font-semibold flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-400" />
-                Instant 1-Click Test Logins
-              </span>
-              <span className="text-[9px] text-[#71717a] font-mono">Bypasses Provider Lock</span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('abdullahpervaiz194@gmail.com', 'Abdullah (Admin)', true, true)}
-                className="w-full py-2 px-3 rounded-lg bg-amber-950/30 hover:bg-amber-950/50 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer group"
-                id="demo-admin-login-btn"
-              >
-                <div className="flex items-center gap-2">
-                  <Shield className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Log In as Abdullah (Admin & Pro)</span>
-                </div>
-                <span className="text-[10px] font-mono text-amber-400/80 group-hover:text-amber-300">
-                  Full Admin ⚡
-                </span>
-              </button>
-
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin('tester.user1@example.com', 'Alex (User 1)', false, false)}
-                  className="py-1.5 px-2.5 rounded-lg bg-[#27272a]/60 hover:bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-white text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  id="demo-user1-login-btn"
-                >
-                  <UserIcon className="w-3 h-3 text-[#71717a]" />
-                  <span>User Account 1 (Free)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin('tester.user2@example.com', 'Sam (User 2)', false, false)}
-                  className="py-1.5 px-2.5 rounded-lg bg-[#27272a]/60 hover:bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-white text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  id="demo-user2-login-btn"
-                >
-                  <UserIcon className="w-3 h-3 text-[#71717a]" />
-                  <span>User Account 2 (Free)</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
         </div>
 
         {/* Footer Guarantee */}

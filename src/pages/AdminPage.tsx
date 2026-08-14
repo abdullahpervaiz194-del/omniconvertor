@@ -41,7 +41,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
     isAdmin, 
     adminModeOverride, 
     setAdminModeOverride,
-    setAuthModalOpen 
+    setAuthModalOpen,
+    signInAsDemoUser
   } = useAuth();
 
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
@@ -290,6 +291,71 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
             ${totalRevenue.toLocaleString()}
           </div>
           <p className="text-[10px] text-[#a1a1aa] font-mono">From approved tiers</p>
+        </div>
+      </section>
+
+      {/* Admin Testing Tools & Account Switcher (Only Available to Admin) */}
+      <section className="p-4 rounded-2xl bg-[#18181b] border border-indigo-500/20 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#27272a]">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <h3 className="text-xs font-bold font-mono text-white">
+              Admin Sandbox & Account Impersonation
+            </h3>
+            <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+              ADMIN ONLY
+            </span>
+          </div>
+          <span className="text-[10px] text-[#71717a] font-mono">
+            Hidden from public visitors • Available only in Admin view
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              await signInAsDemoUser('abdullahpervaiz194@gmail.com', 'Abdullah (Admin)', true, true);
+              setFeedbackMsg({ text: 'Active as Abdullah (Admin & Pro)', type: 'success' });
+            }}
+            className="p-2.5 rounded-xl bg-amber-950/20 hover:bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs font-mono flex items-center justify-between transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Shield className="w-3.5 h-3.5 text-amber-400" />
+              <span className="font-semibold">Abdullah (Admin)</span>
+            </div>
+            <span className="text-[10px] text-amber-400 font-bold">Admin ⚡</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await signInAsDemoUser('tester.user1@example.com', 'Alex (User 1)', false, false);
+              setFeedbackMsg({ text: 'Switched to Test User 1 (Free tier account)', type: 'success' });
+            }}
+            className="p-2.5 rounded-xl bg-[#09090b] hover:bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:text-white text-xs font-mono flex items-center justify-between transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <UserIcon className="w-3.5 h-3.5 text-[#71717a]" />
+              <span>Alex (Free User 1)</span>
+            </div>
+            <span className="text-[10px] text-[#71717a]">Free Tier</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await signInAsDemoUser('tester.user2@example.com', 'Sam (User 2)', false, false);
+              setFeedbackMsg({ text: 'Switched to Test User 2 (Free tier account)', type: 'success' });
+            }}
+            className="p-2.5 rounded-xl bg-[#09090b] hover:bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:text-white text-xs font-mono flex items-center justify-between transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <UserIcon className="w-3.5 h-3.5 text-[#71717a]" />
+              <span>Sam (Free User 2)</span>
+            </div>
+            <span className="text-[10px] text-[#71717a]">Free Tier</span>
+          </button>
         </div>
       </section>
 

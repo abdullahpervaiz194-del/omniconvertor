@@ -21,7 +21,7 @@ export const UserMenu: React.FC = () => {
     isPro, 
     isAdmin,
     logout, 
-    setAuthModalOpen, 
+    openAuthModal,
     setProModalOpen, 
     setHistoryDrawerOpen 
   } = useAuth();
@@ -42,23 +42,22 @@ export const UserMenu: React.FC = () => {
 
   if (!currentUser) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <button
-          onClick={() => setProModalOpen(true)}
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-mono font-bold transition-all cursor-pointer"
-          id="header-pro-trigger"
+          onClick={() => openAuthModal('signin')}
+          className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-md hover:bg-[#18181b] text-[#a1a1aa] hover:text-white border border-[#27272a] text-xs font-mono font-medium transition-all cursor-pointer"
+          id="header-signin-btn"
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>Pro</span>
+          <span>Sign In</span>
         </button>
 
         <button
-          onClick={() => setAuthModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold font-mono py-1.5 px-3.5 rounded-md shadow-md shadow-indigo-600/30 flex items-center gap-2 transition-all cursor-pointer"
-          id="header-signin-btn"
+          onClick={() => openAuthModal('signup')}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold font-mono py-1.5 px-3.5 rounded-md shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition-all cursor-pointer"
+          id="header-signup-btn"
         >
           <User className="w-3.5 h-3.5" />
-          <span>Sign In</span>
+          <span>Sign Up Free</span>
         </button>
       </div>
     );

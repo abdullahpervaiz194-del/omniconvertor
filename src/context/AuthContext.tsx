@@ -20,6 +20,51 @@ import {
   deleteConversionHistoryItem,
 } from '../services/firestoreService';
 
+const REGISTRY_KEY = 'omni_registered_accounts';
+
+export interface RegisteredAccount {
+  email: string;
+  name?: string;
+  createdAt: string;
+}
+
+export const getRegisteredAccounts = (): RegisteredAccount[] => {
+  try {
+    const raw = localStorage.getItem(REGISTRY_KEY);
+    if (!raw) {
+      const defaultAccounts: RegisteredAccount[] = [
+        { email: 'abdullahpervaiz194@gmail.com', name: 'Abdullah (Admin)', createdAt: new Date().toISOString() },
+      ];
+      localStorage.setItem(REGISTRY_KEY, JSON.stringify(defaultAccounts));
+      return defaultAccounts;
+    }
+    return JSON.parse(raw);
+  } catch (e) {
+    return [{ email: 'abdullahpervaiz194@gmail.com', name: 'Abdullah (Admin)', createdAt: new Date().toISOString() }];
+  }
+};
+
+export const registerAccountInStore = (email: string, name?: string) => {
+  const accounts = getRegisteredAccounts();
+  const lower = email.toLowerCase().trim();
+  if (!accounts.some((a) => a.email.toLowerCase() === lower)) {
+    accounts.push({
+      email: lower,
+      name: name || lower.split('@')[0],
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem(REGISTRY_KEY, JSON.stringify(accounts));
+  }
+};
+
+export const isAccountRegisteredInStore = (email: string): boolean => {
+  const lower = email.toLowerCase().trim();
+  // Always permit owner/admin
+  if (lower === 'abdullahpervaiz194@gmail.com') return true;
+  const accounts = getRegisteredAccounts();
+  return accounts.some((a) => a.email.toLowerCase() === lower);
+};
+
 interface AuthContextType {
   currentUser: User | null;
   userProfile: UserProfile | null;
@@ -30,6 +75,9 @@ interface AuthContextType {
   adminModeOverride: boolean;
   setAdminModeOverride: (enabled: boolean) => void;
   authModalOpen: boolean;
+  authModalMode: 'signin' | 'signup' | 'forgot';
+  setAuthModalMode: (mode: 'signin' | 'signup' | 'forgot') => void;
+  openAuthModal: (mode?: 'signin' | 'signup' | 'forgot') => void;
   proModalOpen: boolean;
   historyDrawerOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
@@ -57,11 +105,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Global UI modal toggles
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'forgot'>('signup');
   const [proModalOpen, setProModalOpen] = useState(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [adminModeOverride, setAdminModeOverride] = useState<boolean>(() => {
     return localStorage.getItem('omni_admin_mode') === 'true';
   });
+
+  const openAuthModal = (mode: 'signin' | 'signup' | 'forgot' = 'signup') => {
+    setAuthModalMode(mode);
+    setAuthModalOpen(true);
+  };
 
   const handleSetAdminModeOverride = (enabled: boolean) => {
     setAdminModeOverride(enabled);
@@ -106,6 +160,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('omni_demo_user');
         setCurrentUser(user);
         try {
+          if (user.email) {
+            registerAccountInStore(user.email, user.displayName || undefined);
+          }
           // Synchronize profile document in Firestore
           const profile = await syncUserProfile(
             user.uid,
@@ -152,6 +209,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user) {
         localStorage.removeItem('omni_demo_user');
+        if (result.user.email) {
+          registerAccountInStore(result.user.email, result.user.displayName || undefined);
+        }
         await syncUserProfile(
           result.user.uid,
           result.user.email || '',
@@ -163,6 +223,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error: any) {
       if (error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
         console.info('[Auth] Google provider disabled in Console, creating verified Google session');
+        registerAccountInStore('google.user@gmail.com', 'Google User');
         await signInAsDemoUser('google.user@gmail.com', 'Google User', false, false);
         return;
       }
@@ -174,24 +235,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithEmail = async (email: string, pass: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if account has been registered first
+    if (!isAccountRegisteredInStore(cleanEmail)) {
+      throw new Error(`No account found for "${cleanEmail}". Please click 'Sign Up' first to create your account.`);
+    }
+
     try {
-      const result = await signInWithEmailAndPassword(auth, email, pass);
+      const result = await signInWithEmailAndPassword(auth, cleanEmail, pass);
       if (result.user) {
         localStorage.removeItem('omni_demo_user');
         await syncUserProfile(
           result.user.uid,
-          result.user.email || '',
+          result.user.email || cleanEmail,
           result.user.displayName,
           result.user.photoURL
         );
         setAuthModalOpen(false);
       }
     } catch (error: any) {
-      // If Firebase Auth provider is disabled in Console, automatically fallback to local session so user is never blocked
+      if (error?.code === 'auth/user-not-found' || error?.code === 'auth/invalid-credential') {
+        throw new Error(`Account not found for "${cleanEmail}". Please click 'Sign Up' first to create an account.`);
+      }
+      // If Firebase Auth provider is disabled in Console, automatically fallback to local session for registered accounts
       if (error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
-        console.info('[Auth] Email provider disabled in Console, establishing direct session for:', email);
-        const isOwner = email.toLowerCase() === 'abdullahpervaiz194@gmail.com';
-        await signInAsDemoUser(email, email.split('@')[0], isOwner, isOwner);
+        console.info('[Auth] Email provider disabled in Console, establishing direct session for registered user:', cleanEmail);
+        const isOwner = cleanEmail === 'abdullahpervaiz194@gmail.com';
+        const accounts = getRegisteredAccounts();
+        const acc = accounts.find((a) => a.email.toLowerCase() === cleanEmail);
+        const name = acc?.name || cleanEmail.split('@')[0];
+        await signInAsDemoUser(cleanEmail, name, isOwner, isOwner);
         return;
       }
       console.error('[Auth] Email Sign-In error:', error);
@@ -200,27 +274,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUpWithEmail = async (email: string, pass: string, name?: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = (name || cleanEmail.split('@')[0]).trim();
+
+    // Prevent duplicate registrations
+    if (isAccountRegisteredInStore(cleanEmail) && cleanEmail !== 'abdullahpervaiz194@gmail.com') {
+      throw new Error(`An account with "${cleanEmail}" is already registered. Please switch to Sign In.`);
+    }
+
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, pass);
+      const result = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
       if (result.user) {
         localStorage.removeItem('omni_demo_user');
-        if (name) {
-          await updateProfile(result.user, { displayName: name });
+        registerAccountInStore(cleanEmail, cleanName);
+        if (cleanName) {
+          await updateProfile(result.user, { displayName: cleanName });
         }
         await syncUserProfile(
           result.user.uid,
-          result.user.email || '',
-          name || result.user.displayName,
+          result.user.email || cleanEmail,
+          cleanName || result.user.displayName,
           result.user.photoURL
         );
         setAuthModalOpen(false);
       }
     } catch (error: any) {
-      // If Firebase Auth provider is disabled in Console, automatically register local/Firestore session seamlessly
+      if (error?.code === 'auth/email-already-in-use') {
+        registerAccountInStore(cleanEmail, cleanName);
+        throw new Error(`An account with "${cleanEmail}" is already registered. Please switch to Sign In.`);
+      }
+      // If Firebase Auth provider is disabled in Console, automatically register session seamlessly
       if (error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
-        console.info('[Auth] Email provider disabled in Console, establishing direct registration session for:', email);
-        const isOwner = email.toLowerCase() === 'abdullahpervaiz194@gmail.com';
-        await signInAsDemoUser(email, name || email.split('@')[0], isOwner, isOwner);
+        console.info('[Auth] Email provider disabled in Console, establishing direct registration session for:', cleanEmail);
+        registerAccountInStore(cleanEmail, cleanName);
+        const isOwner = cleanEmail === 'abdullahpervaiz194@gmail.com';
+        await signInAsDemoUser(cleanEmail, cleanName, isOwner, isOwner);
         return;
       }
       console.error('[Auth] Email Sign-Up error:', error);
@@ -234,13 +322,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isProPlan: boolean = false, 
     isAdminRole: boolean = false
   ) => {
-    const isOwnerEmail = email.toLowerCase() === 'abdullahpervaiz194@gmail.com';
+    const cleanEmail = email.trim().toLowerCase();
+    registerAccountInStore(cleanEmail, displayName);
+
+    const isOwnerEmail = cleanEmail === 'abdullahpervaiz194@gmail.com';
     const computedAdmin = isAdminRole || isOwnerEmail;
 
-    const mockUid = 'usr_' + btoa(email).replace(/[^a-zA-Z0-9]/g, '').slice(0, 14);
+    const mockUid = 'usr_' + btoa(cleanEmail).replace(/[^a-zA-Z0-9]/g, '').slice(0, 14);
     const demoUserMock: any = {
       uid: mockUid,
-      email: email,
+      email: cleanEmail,
       displayName: displayName,
       photoURL: null,
       emailVerified: true,
@@ -255,7 +346,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Also try to sync with Firestore if online
     try {
-      const synced = await syncUserProfile(mockUid, email, displayName, null);
+      const synced = await syncUserProfile(mockUid, cleanEmail, displayName, null);
       if (isProPlan && !synced.isPro) {
         await updateUserProStatus(mockUid, true, 'Pro Lifetime');
       }
@@ -268,13 +359,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('[Auth] Demo user using local profile store:', err);
       setUserProfile({
         uid: mockUid,
-        email: email,
+        email: cleanEmail,
         displayName: displayName,
         isPro: isProPlan,
         isAdmin: computedAdmin,
         proPlan: isProPlan ? 'Pro Lifetime' : 'Free Tier',
-        totalConversions: 8,
-        bytesSaved: 1024 * 1024 * 24,
+        totalConversions: 0,
+        bytesSaved: 0,
         createdAt: new Date(),
         updatedAt: new Date()
       });
@@ -367,6 +458,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         adminModeOverride,
         setAdminModeOverride: handleSetAdminModeOverride,
         authModalOpen,
+        authModalMode,
+        setAuthModalMode,
+        openAuthModal,
         proModalOpen,
         historyDrawerOpen,
         setAuthModalOpen,
@@ -375,6 +469,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
+        signInAsDemoUser,
         logout,
         resetPassword,
         upgradeToPro,
