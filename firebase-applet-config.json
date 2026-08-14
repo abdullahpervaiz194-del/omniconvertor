@@ -1,12 +1,12 @@
 {
-  "projectId": "wired-ascent-7q6d2",
-  "appId": "1:607919226905:web:8d18b2090cf187b7cb6a88",
-  "apiKey": "AIzaSyDHdWOxdJcV1FzEIIZw34_gLEiuu1ID5s8",
-  "authDomain": "wired-ascent-7q6d2.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-allinoneconverte-77eba0d6-bca9-4098-8ba5-147ad1e884d9",
-  "storageBucket": "wired-ascent-7q6d2.firebasestorage.app",
-  "messagingSenderId": "607919226905",
-  "measurementId": "",
-  "oAuthClientId": "607919226905-g8i709s980fcgrd5hcep08ajtjbge9oq.apps.googleusercontent.com",
+  "projectId": "omni-converter-3a379",
+  "appId": "1:581509889748:web:9fb42714e2ebb2f173c541",
+  "apiKey": "AIzaSyCgWajy0ya4BlFz9U19b91-t8Gua-E0BZ8",
+  "authDomain": "omni-converter-3a379.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "omni-converter-3a379.firebasestorage.app",
+  "messagingSenderId": "581509889748",
+  "measurementId": "G-XQX7GXZ7KJ",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }
