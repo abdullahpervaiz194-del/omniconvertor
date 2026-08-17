@@ -17,6 +17,7 @@ import {
   setLogLevel,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
   collection,
@@ -75,6 +76,7 @@ export {
 export {
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
   collection,
