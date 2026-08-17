@@ -4,6 +4,7 @@ import {
   storage,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
   collection,
@@ -376,10 +377,10 @@ export async function deleteConversionHistoryItem(
 // 3. Payment Screenshot & Proof Management
 
 /**
- * Compresses an image file on the client using HTML5 Canvas to a lightweight, crisp JPEG (~50KB)
+ * Compresses an image file on the client using HTML5 Canvas to a lightweight, crisp JPEG (~40-60KB)
  * for instant uploads and sub-second transmission without exceeding Firestore or localStorage limits.
  */
-async function compressImageToDataUrl(file: File | Blob, maxWidth = 1200, quality = 0.8): Promise<string> {
+async function compressImageToDataUrl(file: File | Blob, maxWidth = 800, quality = 0.65): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -437,7 +438,7 @@ export async function uploadPaymentScreenshot(
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
   const storagePath = `payments/${userId}/${timestamp}_${safeName}`;
 
-  // 1. Immediately compress client-side to ensure small footprint (<100KB)
+  // 1. Immediately compress client-side to ensure small footprint (~40-60KB)
   const compressedDataUrl = await compressImageToDataUrl(file);
 
   // If no Firebase Auth currentUser or user is in demo mode, resolve immediately
@@ -488,9 +489,21 @@ export async function submitPaymentRequest(
   const path = `paymentRequests/${requestId}`;
   const now = new Date().toISOString();
 
+  // Explicitly sanitize all properties to prevent undefined values from crashing Firestore setDoc
   const newRequest: PaymentRequest = {
-    ...paymentData,
     id: requestId,
+    userId: String(paymentData.userId || ''),
+    userEmail: String(paymentData.userEmail || ''),
+    userName: String(paymentData.userName || 'Member'),
+    planId: String(paymentData.planId || 'pro_lifetime'),
+    planName: String(paymentData.planName || 'Pro Lifetime Access'),
+    amount: Number(paymentData.amount) || 49,
+    currency: String(paymentData.currency || 'USD'),
+    paymentMethod: String(paymentData.paymentMethod || 'bank_transfer'),
+    transactionId: String(paymentData.transactionId || `TX-${Date.now().toString().slice(-6)}`),
+    screenshotUrl: String(paymentData.screenshotUrl || ''),
+    storagePath: String(paymentData.storagePath || ''),
+    notes: String(paymentData.notes || ''),
     status: 'pending',
     createdAt: now,
     updatedAt: now,
@@ -515,10 +528,42 @@ export async function submitPaymentRequest(
     const requestRef = doc(db, 'paymentRequests', requestId);
     await setDoc(requestRef, newRequest);
   } catch (error) {
-    console.warn('[Firestore] submitPaymentRequest cloud write warning:', error);
+    console.warn('[Firestore] submitPaymentRequest cloud write error:', error);
   }
 
   return newRequest;
+}
+
+/**
+ * Direct one-off fetch for payment requests from Cloud Firestore (for Admin manual refresh).
+ */
+export async function fetchPaymentRequestsDirect(): Promise<PaymentRequest[]> {
+  try {
+    const q = query(
+      collection(db, 'paymentRequests'),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    const items: PaymentRequest[] = [];
+    snapshot.forEach((docSnap) => {
+      items.push(docSnap.data() as PaymentRequest);
+    });
+
+    const localAll = getLocalPaymentRequests();
+    const mergedMap = new Map<string, PaymentRequest>();
+    localAll.forEach(item => mergedMap.set(item.id, item));
+    items.forEach(item => mergedMap.set(item.id, item));
+
+    const combined = Array.from(mergedMap.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    saveLocalPaymentRequests(combined);
+    return combined;
+  } catch (error) {
+    console.warn('[Firestore] fetchPaymentRequestsDirect warning:', error);
+    return getLocalPaymentRequests();
+  }
 }
 
 /**
