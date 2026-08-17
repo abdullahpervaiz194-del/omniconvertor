@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import {
   subscribeToAllPaymentRequests,
+  fetchPaymentRequestsDirect,
   approvePaymentRequest,
   rejectPaymentRequest
 } from '../services/firestoreService';
@@ -43,6 +44,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
 
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
@@ -56,6 +58,26 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
 
   // Screenshot Lightbox
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const direct = await fetchPaymentRequestsDirect();
+      setRequests(direct);
+      setFeedbackMsg({
+        text: `Refreshed ${direct.length} payment records directly from Firestore.`,
+        type: 'success'
+      });
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    } catch (e: any) {
+      setFeedbackMsg({
+        text: e.message || 'Failed to refresh records.',
+        type: 'error'
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Subscribe to all payment requests in Firestore only when authenticated as admin
   useEffect(() => {
@@ -74,6 +96,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
         setIsLoading(false);
       }
     );
+
+    // Also run an immediate direct fetch to populate instantly
+    fetchPaymentRequestsDirect().then((items) => {
+      if (items.length > 0) {
+        setRequests(items);
+        setIsLoading(false);
+      }
+    });
 
     return () => unsub();
   }, [isAdmin]);
@@ -227,7 +257,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-start sm:self-auto">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="px-3 py-1.5 rounded-xl bg-[#18181b] hover:bg-[#27272a] border border-[#27272a] text-white text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+            title="Refresh payment requests from Firestore"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Syncing...' : 'Refresh'}</span>
+          </button>
           <button
             onClick={() => navigate('/pricing')}
             className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/20"
