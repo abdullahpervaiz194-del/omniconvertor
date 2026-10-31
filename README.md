@@ -3,8 +3,7 @@
 A modern, privacy-first, client-side web application for converting images, documents, audio, and video directly inside your web browser with zero server uploads.
 
 > **"Your files. Your device. Your conversions."**
-
----
+ ONLINE URL LINK : https://omniconvertor-lime.vercel.app/
 
 ## 🚀 Key Features
 
@@ -39,31 +38,4 @@ A modern, privacy-first, client-side web application for converting images, docu
 * **Vector Tracing Engine**: Pure TypeScript color quantization and contour path vectorizer
 * **Media & Audio Engine**: Web Audio API `AudioContext`, Canvas Stream `MediaRecorder`, and pure JS LZW `GifEncoder`
 
----
 
-## 📦 Installation & Local Development
-
-```bash
-# Clone the repository
-git clone https://github.com/your-username/all-in-one-converter.git
-
-# Install dependencies
-npm install
-
-# Start the local development server (runs on http://localhost:3000)
-npm run dev
-
-# Build for production
-npm run build
-```
-
----
-
-## 🌐 Deployment to Vercel
-
-1. Push this repository to GitHub.
-2. Import the repository in [Vercel](https://vercel.com).
-3. Framework Preset: **Vite**
-4. Build Command: `npm run build`
-5. Output Directory: `dist`
-6. Deploy!
