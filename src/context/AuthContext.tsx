@@ -22,6 +22,7 @@ import {
 } from '../services/firestoreService';
 
 const REGISTRY_KEY = 'omni_registered_accounts';
+const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || 'abdullahpervaiz194@gmail.com').toLowerCase().trim();
 
 export interface RegisteredAccount {
   email: string;
@@ -34,14 +35,14 @@ export const getRegisteredAccounts = (): RegisteredAccount[] => {
     const raw = localStorage.getItem(REGISTRY_KEY);
     if (!raw) {
       const defaultAccounts: RegisteredAccount[] = [
-        { email: 'abdullahpervaiz194@gmail.com', name: 'Abdullah (Admin)', createdAt: new Date().toISOString() },
+        { email: ADMIN_EMAIL, name: 'Admin', createdAt: new Date().toISOString() },
       ];
       localStorage.setItem(REGISTRY_KEY, JSON.stringify(defaultAccounts));
       return defaultAccounts;
     }
     return JSON.parse(raw);
   } catch (e) {
-    return [{ email: 'abdullahpervaiz194@gmail.com', name: 'Abdullah (Admin)', createdAt: new Date().toISOString() }];
+    return [{ email: ADMIN_EMAIL, name: 'Admin', createdAt: new Date().toISOString() }];
   }
 };
 
@@ -61,7 +62,7 @@ export const registerAccountInStore = (email: string, name?: string) => {
 export const isAccountRegisteredInStore = (email: string): boolean => {
   const lower = email.toLowerCase().trim();
   // Always permit owner/admin
-  if (lower === 'abdullahpervaiz194@gmail.com') return true;
+  if (lower === ADMIN_EMAIL) return true;
   const accounts = getRegisteredAccounts();
   return accounts.some((a) => a.email.toLowerCase() === lower);
 };
@@ -115,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isEmailAdmin = !!(
     currentUser?.email &&
-    (currentUser.email.toLowerCase() === 'abdullahpervaiz194@gmail.com' ||
+    (currentUser.email.toLowerCase() === ADMIN_EMAIL ||
      currentUser.email.toLowerCase().includes('admin'))
   );
 
@@ -133,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: parsed.email,
           displayName: parsed.displayName || 'Demo User',
           isPro: parsed.isPro ?? false,
-          isAdmin: parsed.isAdmin ?? (parsed.email === 'abdullahpervaiz194@gmail.com'),
+          isAdmin: parsed.isAdmin ?? (parsed.email === ADMIN_EMAIL),
           proPlan: parsed.proPlan || (parsed.isPro ? 'Pro Monthly' : 'Free Tier'),
           totalConversions: 12,
           bytesSaved: 1024 * 1024 * 45,
@@ -257,7 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // If Firebase Auth provider is disabled in Console, automatically fallback to local session for registered accounts
       if (error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
         console.info('[Auth] Email provider disabled in Console, establishing direct session for registered user:', cleanEmail);
-        const isOwner = cleanEmail === 'abdullahpervaiz194@gmail.com';
+        const isOwner = cleanEmail === ADMIN_EMAIL;
         const accounts = getRegisteredAccounts();
         const acc = accounts.find((a) => a.email.toLowerCase() === cleanEmail);
         const name = acc?.name || cleanEmail.split('@')[0];
@@ -274,7 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanName = (name || cleanEmail.split('@')[0]).trim();
 
     // Prevent duplicate registrations
-    if (isAccountRegisteredInStore(cleanEmail) && cleanEmail !== 'abdullahpervaiz194@gmail.com') {
+    if (isAccountRegisteredInStore(cleanEmail) && cleanEmail !== ADMIN_EMAIL) {
       throw new Error(`An account with "${cleanEmail}" is already registered. Please switch to Sign In.`);
     }
 
@@ -303,7 +304,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
         console.info('[Auth] Email provider disabled in Console, establishing direct registration session for:', cleanEmail);
         registerAccountInStore(cleanEmail, cleanName);
-        const isOwner = cleanEmail === 'abdullahpervaiz194@gmail.com';
+        const isOwner = cleanEmail === ADMIN_EMAIL;
         await signInAsDemoUser(cleanEmail, cleanName, isOwner, isOwner);
         return;
       }
@@ -321,7 +322,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanEmail = email.trim().toLowerCase();
     registerAccountInStore(cleanEmail, displayName);
 
-    const isOwnerEmail = cleanEmail === 'abdullahpervaiz194@gmail.com';
+    const isOwnerEmail = cleanEmail === ADMIN_EMAIL;
     const computedAdmin = isAdminRole || isOwnerEmail;
 
     const mockUid = 'usr_' + btoa(cleanEmail).replace(/[^a-zA-Z0-9]/g, '').slice(0, 14);
