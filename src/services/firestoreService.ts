@@ -80,6 +80,13 @@ function saveLocalPaymentRequests(requests: PaymentRequest[]) {
 // 1. User Profile Management
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const path = `users/${uid}`;
+  if (!db) {
+    try {
+      const raw = localStorage.getItem(LOCAL_PROFILE_PREFIX + uid);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return null;
+  }
   try {
     const userDoc = await getDoc(doc(db, 'users', uid));
     if (userDoc.exists()) {
@@ -134,6 +141,10 @@ export async function syncUserProfile(
     }
     localStorage.setItem(LOCAL_PROFILE_PREFIX + uid, JSON.stringify(profileData));
   } catch (e) {}
+
+  if (!db) {
+    return profileData;
+  }
 
   try {
     const userRef = doc(db, 'users', uid);
@@ -207,6 +218,7 @@ export async function updateUserProStatus(
   }
 
   // Update Cloud Firestore
+  if (!db) return;
   try {
     const userRef = doc(db, 'users', uid);
     const existingDoc = await getDoc(userRef);
@@ -260,6 +272,7 @@ export async function addConversionHistory(
   }
 
   // Cloud Firestore update
+  if (!db) return historyItem;
   try {
     const historyRef = doc(db, 'users', userId, 'history', historyId);
     await setDoc(historyRef, historyItem);
@@ -292,6 +305,14 @@ export function subscribeToUserHistory(
     } catch (e) {}
   };
   loadLocal();
+
+  if (!db) {
+    const handleUpdate = () => loadLocal();
+    window.addEventListener('omni_history_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('omni_history_updated', handleUpdate);
+    };
+  }
 
   const historyQuery = query(
     collection(db, 'users', userId, 'history'),
@@ -327,6 +348,10 @@ export function subscribeToUserProfile(
     const raw = localStorage.getItem(LOCAL_PROFILE_PREFIX + userId);
     if (raw) onUpdate(JSON.parse(raw));
   } catch (e) {}
+
+  if (!db) {
+    return () => {};
+  }
 
   const userRef = doc(db, 'users', userId);
 
@@ -366,6 +391,7 @@ export async function deleteConversionHistoryItem(
     }
   } catch (e) {}
 
+  if (!db) return;
   try {
     const historyRef = doc(db, 'users', userId, 'history', historyId);
     await deleteDoc(historyRef);
@@ -524,6 +550,7 @@ export async function submitPaymentRequest(
   }
 
   // 2. Always publish to Cloud Firestore so the Admin receives it in real-time
+  if (!db) return newRequest;
   try {
     const requestRef = doc(db, 'paymentRequests', requestId);
     await setDoc(requestRef, newRequest);
@@ -538,6 +565,9 @@ export async function submitPaymentRequest(
  * Direct one-off fetch for payment requests from Cloud Firestore (for Admin manual refresh).
  */
 export async function fetchPaymentRequestsDirect(): Promise<PaymentRequest[]> {
+  if (!db) {
+    return getLocalPaymentRequests();
+  }
   try {
     const q = query(
       collection(db, 'paymentRequests'),
@@ -586,6 +616,12 @@ export function subscribeToUserPaymentRequests(
 
   const handleUpdate = () => loadUserRequests();
   window.addEventListener('omni_payments_updated', handleUpdate);
+
+  if (!db) {
+    return () => {
+      window.removeEventListener('omni_payments_updated', handleUpdate);
+    };
+  }
 
   const q = query(
     collection(db, 'paymentRequests'),
@@ -643,6 +679,12 @@ export function subscribeToAllPaymentRequests(
 
   const handleLocalUpdate = () => loadAllRequests();
   window.addEventListener('omni_payments_updated', handleLocalUpdate);
+
+  if (!db) {
+    return () => {
+      window.removeEventListener('omni_payments_updated', handleLocalUpdate);
+    };
+  }
 
   const q = query(
     collection(db, 'paymentRequests'),
@@ -709,6 +751,7 @@ export async function approvePaymentRequest(
   await updateUserProStatus(targetUserId, true, planName || 'Pro Unlimited');
 
   // 2. Update Cloud Firestore
+  if (!db) return;
   try {
     const reqRef = doc(db, 'paymentRequests', requestId);
     await updateDoc(reqRef, {
@@ -746,6 +789,7 @@ export async function rejectPaymentRequest(
   } catch (e) {}
 
   // 2. Update Cloud Firestore
+  if (!db) return;
   try {
     const reqRef = doc(db, 'paymentRequests', requestId);
     await updateDoc(reqRef, {

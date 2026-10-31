@@ -44,42 +44,147 @@ const firebaseConfig = {
   firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || defaultFirebaseConfig.firestoreDatabaseId || '(default)',
 };
 
-// Initialize the Firebase app instance safely
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-
-// Set Firestore log level to silent to suppress benign connection retry warnings in sandboxed iframes
-try {
-  setLogLevel('silent');
-} catch {
-  // ignore if already set
-}
-
-// Initialize Firestore with force long polling to ensure immediate, stable HTTP streaming in container and iframe environments
-export const db = initializeFirestore(
-  app,
-  {
-    experimentalForceLongPolling: true,
-  },
-  firebaseConfig.firestoreDatabaseId
+// Check if a valid API key is present
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey &&
+  typeof firebaseConfig.apiKey === 'string' &&
+  firebaseConfig.apiKey.trim() !== '' &&
+  !firebaseConfig.apiKey.includes('YOUR_FIREBASE')
 );
 
-export const auth = getAuth(app);
-export const storage = getStorage(app);
+let appInstance: any = null;
+let dbInstance: any = null;
+let authInstance: any = null;
+let storageInstance: any = null;
 
-// Configure Google Auth Provider
-export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account',
-});
+if (isFirebaseConfigured) {
+  try {
+    appInstance = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    try {
+      setLogLevel('silent');
+    } catch {}
+    dbInstance = initializeFirestore(
+      appInstance,
+      {
+        experimentalForceLongPolling: true,
+      },
+      firebaseConfig.firestoreDatabaseId
+    );
+    authInstance = getAuth(appInstance);
+    storageInstance = getStorage(appInstance);
+  } catch (error) {
+    console.warn('[Firebase] Initialization error, running with local/offline fallback mode:', error);
+    appInstance = null;
+    dbInstance = null;
+    authInstance = null;
+    storageInstance = null;
+  }
+} else {
+  console.info('[Firebase] Running in offline local mode (VITE_FIREBASE_API_KEY is unconfigured).');
+}
+
+// Fallback dummy auth object to prevent null reference errors
+const dummyAuth = {
+  currentUser: null,
+};
+
+export const app = appInstance;
+export const db = dbInstance;
+export const auth = authInstance || (dummyAuth as any);
+export const storage = storageInstance;
+
+// Configure Google Auth Provider safely
+let googleProviderInstance: GoogleAuthProvider;
+try {
+  googleProviderInstance = new GoogleAuthProvider();
+  googleProviderInstance.setCustomParameters({
+    prompt: 'select_account',
+  });
+} catch {
+  googleProviderInstance = {} as any;
+}
+export const googleProvider = googleProviderInstance;
+
+// Safe wrapper for onAuthStateChanged that never crashes in unconfigured/offline mode
+export const safeOnAuthStateChanged = (
+  authObj: any,
+  nextOrObserver: any,
+  error?: any,
+  completed?: any
+): Unsubscribe => {
+  if (!authInstance) {
+    if (typeof nextOrObserver === 'function') {
+      setTimeout(() => {
+        try {
+          nextOrObserver(null);
+        } catch (e) {
+          console.warn('[Auth] Callback warning in offline mode:', e);
+        }
+      }, 0);
+    }
+    return () => {};
+  }
+  try {
+    return onAuthStateChanged(authInstance, nextOrObserver, error, completed);
+  } catch (err) {
+    console.warn('[Auth] onAuthStateChanged listener fallback:', err);
+    if (typeof nextOrObserver === 'function') {
+      setTimeout(() => nextOrObserver(null), 0);
+    }
+    return () => {};
+  }
+};
+
+// Safe wrapper for signInWithPopup
+export const safeSignInWithPopup = async (authObj: any, provider: any) => {
+  if (!authInstance) {
+    throw new Error('Firebase Auth is not configured. Please add VITE_FIREBASE_API_KEY in your Vercel or environment settings.');
+  }
+  return signInWithPopup(authInstance, provider);
+};
+
+// Safe wrapper for signInWithEmailAndPassword
+export const safeSignInWithEmailAndPassword = async (authObj: any, email: string, pass: string) => {
+  if (!authInstance) {
+    const err: any = new Error('Firebase Auth is not configured (auth/operation-not-allowed).');
+    err.code = 'auth/operation-not-allowed';
+    throw err;
+  }
+  return signInWithEmailAndPassword(authInstance, email, pass);
+};
+
+// Safe wrapper for createUserWithEmailAndPassword
+export const safeCreateUserWithEmailAndPassword = async (authObj: any, email: string, pass: string) => {
+  if (!authInstance) {
+    const err: any = new Error('Firebase Auth is not configured (auth/operation-not-allowed).');
+    err.code = 'auth/operation-not-allowed';
+    throw err;
+  }
+  return createUserWithEmailAndPassword(authInstance, email, pass);
+};
+
+// Safe wrapper for signOut
+export const safeSignOut = async (authObj: any) => {
+  if (!authInstance) return;
+  return signOut(authInstance);
+};
+
+// Safe wrapper for sendPasswordResetEmail
+export const safeSendPasswordResetEmail = async (authObj: any, email: string) => {
+  if (!authInstance) {
+    throw new Error('Firebase Auth is not configured.');
+  }
+  return sendPasswordResetEmail(authInstance, email);
+};
 
 // Re-export Auth utilities
 export {
-  onAuthStateChanged,
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  sendPasswordResetEmail,
+  safeOnAuthStateChanged as onAuthStateChanged,
+  safeSignInWithPopup as signInWithPopup,
+  safeSignInWithEmailAndPassword as signInWithEmailAndPassword,
+  safeCreateUserWithEmailAndPassword as createUserWithEmailAndPassword,
+  safeSignOut as signOut,
+  safeSendPasswordResetEmail as sendPasswordResetEmail,
   updateProfile,
   type User,
 };
@@ -109,6 +214,3 @@ export {
 };
 
 export default app;
-
-
-
